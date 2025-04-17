@@ -1,10 +1,12 @@
 import ACTIONS from "@config/actions";
-import { VERSION } from "@config/constants";
 import LifecycleManager from "@managers/LifeCycleManager";
 import Virtualiser from "@managers/Virtualiser";
 import { Logger } from "@utils/utils";
 
-Logger.debug("ChatGPT Long Chat Optimiser", `Loaded v${VERSION}`);
+Logger.debug(
+  "ChatGPT Long Chat Optimiser",
+  `Loaded v${chrome.runtime.getManifest().version}`
+);
 
 const lifeCycleManager: LifecycleManager = new LifecycleManager();
 const virtualiser: Virtualiser = new Virtualiser();

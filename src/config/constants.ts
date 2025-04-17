@@ -1,9 +1,4 @@
 /**
- * Version number for ChatGPT Long Chat Optimiser.
- */
-export const VERSION = "0.1.0";
-
-/**
  * DOM query selectors for locating elements within the ChatGPT interface.
  */
 export const SELECTORS = {

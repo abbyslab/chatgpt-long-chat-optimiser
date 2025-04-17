@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ChatGPT Virtualiser",
-  "version": "1.0",
+  "version": "0.1.1",
   "description": "Virtualises ChatGPT conversations and improves scrolling behavior.",
   "permissions": ["tabs", "scripting", "activeTab"],
   "host_permissions": [

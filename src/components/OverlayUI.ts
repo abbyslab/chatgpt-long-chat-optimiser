@@ -64,10 +64,6 @@ export default class OverlayUI {
     localStorage.setItem(this.cacheKey, isVisible ? "true" : "false");
   }
 
-  #cacheUnset(): void {
-    localStorage.removeItem(this.cacheKey);
-  }
-
   /**
    * Updates the overlay content with the provided statistics.
    * @param {Object} stats - Contains visible, total, scrollTop, clientHeight, and scrollHeight.
@@ -104,6 +100,5 @@ export default class OverlayUI {
   destroy() {
     if (this.overlayHTMLElement)
       document.body.removeChild(this.overlayHTMLElement);
-    this.#cacheUnset();
   }
 }

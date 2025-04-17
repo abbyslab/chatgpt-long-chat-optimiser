@@ -1,0 +1,28 @@
+{
+  "name": "chatgpt-long-chat-optimizer",
+  "version": "1.0.0",
+  "description": "A Chrome extension that virtualises ChatGPT conversations to improve scrolling performance on long chats. This project was developed with iterative assistance from ChatGPT, and refined through hands-on adjustments and continuous improvement.",
+  "scripts": {
+    "build": "webpack",
+    "watch": "webpack --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mbeardwell/chatgpt-long-chat-optimizer.git"
+  },
+  "keywords": [],
+  "author": "Matthew Beardwell <matthewbeardwell@gmail.com> (https://github.com/mbeardwell)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mbeardwell/chatgpt-long-chat-optimizer/issues"
+  },
+  "homepage": "https://github.com/mbeardwell/chatgpt-long-chat-optimizer#readme",
+  "devDependencies": {
+    "@types/chrome": "^0.0.313",
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.8.3",
+    "webpack": "^5.98.0",
+    "webpack-cli": "^6.0.1"
+  }
+}

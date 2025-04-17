@@ -1,0 +1,51 @@
+# Node modules and package manager folders
+node_modules/
+jspm_packages/
+
+# Build outputs and generated files
+dist/
+build/
+*.bundle.js
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Cache directories
+.npm/
+.cache/
+.eslintcache
+
+# Environment and configuration files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Coverage directory (e.g., for istanbul)
+coverage/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE / Editor settings
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# Misc
+dist-ssr/

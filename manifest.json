@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "ChatGPT Virtualiser",
+  "version": "1.0",
+  "description": "Virtualises ChatGPT conversations and improves scrolling behavior.",
+  "permissions": ["tabs", "scripting", "activeTab"],
+  "host_permissions": [
+    "https://chat.openai.com/*",
+    "https://chatgpt.com/*"
+  ],
+  "icons": {
+    "16": "public/icon16.png",
+    "48": "public/icon48.png",
+    "128": "public/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*"
+      ],
+      "js": ["./dist/content_script.bundle.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "background": {
+    "service_worker": "./dist/background.bundle.js",
+    "type": "module"
+  },
+  "commands": {
+    "toggle-debug-overlay": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y"
+      },
+      "description": "Toggle the debug overlay"
+    }
+  }
+}

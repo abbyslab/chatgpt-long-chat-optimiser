@@ -64,7 +64,7 @@ export default class ScrollManager {
    * updating the scroll button visibility, and updating the overlay stats.
    */
   onScroll() {
-    console.log("SCROLLING");
+    Logger.debug("SCROLLING");
     if (!this.container || window.disableAutoScroll) return;
 
     const scrollingUp = this.container?.scrollTop < this.lastScrollTop;

@@ -92,20 +92,6 @@ export function outerTag(el: HTMLElement): string {
 }
 
 /**
- * Clamps a number between a minimum and maximum value. 
- * @param x - The number to clamp.
- * @param min - The minimum value.
- * @param max - The maximum value.
- * @returns The clamped number.
- */
-export function clamp(x: number, min: number, max: number): number {
-  if (min > max) {
-    throw new Error(`Min cannot be greater than max: ${min} > ${max}`);
-  }
-  return Math.max(min, Math.min(x, max));
-}
-
-/**
  * Gets the scrollable chat container element from the DOM.
  */
 export function getChatContainer(): Element | null {

@@ -108,9 +108,9 @@ export default class VirtualChatManager {
     const maxIndex = this.allTurns.length - 1;
     if (requestIndexLow < 0) {
       requestIndexLow = 0;
-      requestIndexHigh = Math.min(CONFIG.WINDOW_SIZE, maxIndex);
+      requestIndexHigh = Math.min(CONFIG.WINDOW_SIZE - 1, maxIndex);
     } else if (requestIndexHigh > maxIndex) {
-      requestIndexLow = Math.max(0, maxIndex - CONFIG.WINDOW_SIZE);
+      requestIndexLow = Math.max(0, maxIndex - CONFIG.WINDOW_SIZE + 1);
       requestIndexHigh = maxIndex;
     }
 

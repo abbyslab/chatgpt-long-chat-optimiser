@@ -14,6 +14,7 @@ export default class ScrollManager {
   private container: Element | null;
   private scrollHandler: EventListenerOrEventListenerObject;
   private scrollIntervalId: number | null;
+  private updateIntervalId: number | null;
 
   /**
    * Creates a new ScrollManager instance.
@@ -28,8 +29,9 @@ export default class ScrollManager {
     this.chatManager = chatManager;
     this.scrollButton = scrollButton;
     this.container = null; // The conversation container element
-    this.scrollHandler = this.onScroll.bind(this);
+    this.scrollHandler = this.updateIfNeeded.bind(this);
     this.scrollIntervalId = null;
+    this.updateIntervalId = null;
 
     this.attach();
   }
@@ -68,23 +70,22 @@ export default class ScrollManager {
       Logger.debug("ScrollManager", "Container before attaching scroll listener:");
       Logger.debug("ScrollManager", `  ${outerTag(this.container as HTMLElement)}`);
       this.container.addEventListener("scroll", this.scrollHandler, { passive: true });
+      this.updateIntervalId = window.setTimeout(() => this.scrollHandler, 1000);
       Logger.debug("ScrollManager", "Scroll event attached.");
     };
     tryBind();
   }
 
   /**
-   * Handles scroll events by extending the visible window if needed,
-   * updating the scroll button visibility, and updating the overlay stats.
+   * Checks if old or new messages need to be loaded based on scrolled distance.
+   * Also updates the scroll button visibility and the overlay stats.
    */
-  public onScroll(): void {
+  public updateIfNeeded(): void {
     if (!this.container || window.disableAutoScroll) return;
 
-    Logger.debug("ScrollManager", "Scrolling...");
-
-    const scrollTop = this.container.scrollTop;
-    const scrollHeight = this.container.scrollHeight;
-    const clientHeight = this.container.clientHeight;
+    const scrollHeight = this.container.scrollHeight; // Height of scrollable area
+    const clientHeight = this.container.clientHeight; // Height of visible area
+    const scrollTop = this.container.scrollTop;       // Distance from top of scrollable area to the top of visible area
 
     const adjustedTopThreshold = Math.min(CONFIG.TOP_THRESHOLD, clientHeight / 2);
     const adjustedBottomThreshold = Math.min(CONFIG.BOTTOM_THRESHOLD, clientHeight / 2);
@@ -138,12 +139,12 @@ export default class ScrollManager {
     let attempts = 0;
     const maxAttempts = 10;
 
-    if (this.scrollIntervalId) clearInterval(this.scrollIntervalId);
+    if (this.scrollIntervalId) window.clearInterval(this.scrollIntervalId);
     this.scrollIntervalId = window.setInterval(() => {
       attempts++;
       const lastChild = container.lastElementChild;
       if (!lastChild || attempts >= maxAttempts) {
-        if (this.scrollIntervalId) clearInterval(this.scrollIntervalId);
+        if (this.scrollIntervalId) window.clearInterval(this.scrollIntervalId);
         this.scrollIntervalId = null;
         window.disableAutoScroll = false;
         return;
@@ -161,7 +162,7 @@ export default class ScrollManager {
       if (offset > 5) {
         container.scrollTop += offset;
       } else {
-        if (this.scrollIntervalId) clearInterval(this.scrollIntervalId);
+        if (this.scrollIntervalId) window.clearInterval(this.scrollIntervalId);
         this.scrollIntervalId = null;
         window.disableAutoScroll = false;
       }
@@ -172,7 +173,8 @@ export default class ScrollManager {
    * Cleans up resources when the manager is no longer needed.
    */
   public destroy(): void {
-    if (this.scrollIntervalId) clearInterval(this.scrollIntervalId);
+    if (this.scrollIntervalId) window.clearInterval(this.scrollIntervalId);
+    if (this.updateIntervalId) window.clearInterval(this.updateIntervalId);
     if (this.container && this.scrollHandler) {
       this.container.removeEventListener("scroll", this.scrollHandler);
     }

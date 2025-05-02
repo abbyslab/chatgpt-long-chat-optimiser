@@ -34,9 +34,9 @@ const checkURL = (): void => {
 };
 
 // Periodically check - catches pushstate and replacestate
-const id: NodeJS.Timeout = setInterval(checkURL, 1000);
+const id: number = window.setInterval(checkURL, 1000);
 lifeCycleManager?.register((): void => {
-  clearInterval(id);
+  window.clearInterval(id);
 });
 
 // Also listen to popstate (back/forward buttons)

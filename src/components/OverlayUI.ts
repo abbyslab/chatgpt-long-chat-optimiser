@@ -39,7 +39,7 @@ export default class OverlayUI {
     if (!this.isCacheSet()) {
       this.setCachedVisibility(CONFIG.OVERLAY_ENABLED);
     }
-    this.enforceVisibility();
+    this.enforceCachedVisibility();
 
     Logger.debug("OverlayUI", "Debug overlay initialised.");
   }
@@ -93,14 +93,14 @@ export default class OverlayUI {
         ? "Waiting for messages..."
         : DebugStatistics.getInstance().toString();
 
-    this.enforceVisibility();
+    this.enforceCachedVisibility();
   }
 
   /**
    * Enforces visibility of the overlay based on cached state.
    * @private
    */
-  private enforceVisibility(): void {
+  private enforceCachedVisibility(): void {
     if (!this.shadowHost) return;
     this.shadowHost.style.display = this.isCachedVisible() ? "block" : "none";
   }
@@ -110,7 +110,7 @@ export default class OverlayUI {
    */
   public toggle(): void {
     this.setCachedVisibility(!this.isCachedVisible());
-    this.enforceVisibility();
+    this.enforceCachedVisibility();
     Logger.debug("OverlayUI", `Visibility toggled: ${this.isCachedVisible()}`);
   }
 }

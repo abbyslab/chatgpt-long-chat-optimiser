@@ -56,9 +56,17 @@ When ChatGPT conversations become very long, the DOM can get overloaded and scro
 
 1. **Build the Extension:** The project uses Webpack to bundle the modular source code into production‑ready scripts.
 
-   ```bash
-   npm run build
-   ```
+   - For development
+
+     ```bash  
+     npm run dev
+     ```
+
+   - For production
+
+     ```bash
+     npm run build
+     ```
 
    The bundled files are output to the `dist` folder.
 

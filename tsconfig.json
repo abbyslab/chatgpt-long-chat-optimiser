@@ -9,7 +9,8 @@
       "@managers/*": ["managers/*"],
       "@utils/*": ["utils/*"],
       "@content/*": ["content/*"],
-      "@config/*": ["config/*"]
+      "@config/*": ["config/*"],
+      "@styles/*": ["styles/*"],
     },
     "allowJs": false,
     "strict": true,

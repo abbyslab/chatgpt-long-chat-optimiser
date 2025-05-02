@@ -1,30 +1,26 @@
 import OverlayUI from "@components/OverlayUI";
 import ScrollButton from "@components/ScrollButton";
-import { CONFIG } from "@config/config";
-import { SELECTORS } from "@config/constants";
 import MutationWatcher from "@content/MutationWatcher";
 import LifeCycleManager from "@managers/LifeCycleManager";
 import ScrollManager from "@managers/ScrollManager";
 import VirtualChatManager from "@managers/VirtualChatManager";
-import { Logger } from "@utils/utils";
+import { getChatContainer, Logger } from "@utils/utils";
 
 export default class Virtualiser {
-  virtualChatManager: VirtualChatManager | null;
-  scrollButton: ScrollButton | null;
-  scrollManager: ScrollManager | null;
-  overlay: OverlayUI | null;
-  mutationWatcher: MutationWatcher | null;
-  lifeCycleManager: LifeCycleManager | null;
+  private virtualChatManager: VirtualChatManager | null;
+  private scrollButton: ScrollButton | null;
+  private scrollManager: ScrollManager | null;
+  private mutationWatcher: MutationWatcher | null;
+  private lifeCycleManager: LifeCycleManager | null;
 
-  constructor() {
+  public constructor() {
     this.virtualChatManager = null;
     this.scrollButton = null;
     this.scrollManager = null;
-    this.overlay = null;
     this.mutationWatcher = null;
     this.lifeCycleManager = new LifeCycleManager();
 
-    this.#initVirtualiser();
+    this.initVirtualiser();
   }
 
   /**
@@ -34,17 +30,14 @@ export default class Virtualiser {
    *
    * @returns {Promise<Element>} Resolves with the container element.
    */
-  #waitForContainer() {
+  private waitForContainer() {
     return new Promise((resolve) => {
       /**
        * Tries to locate the chat container using known selectors.
        * If found, resolves immediately.
        */
       const tryFind = () => {
-        const container =
-          document.querySelector(SELECTORS.CONVERSATION_TURN)?.parentElement ||
-          document.querySelector(SELECTORS.CHAT_CONTAINER);
-
+        const container = getChatContainer();
         if (container) {
           resolve(container);
           return true;
@@ -61,67 +54,46 @@ export default class Virtualiser {
         if (tryFind()) observer.disconnect();
       });
 
+      setTimeout(() => observer.disconnect(), 30000); // Stop after 30 seconds
       observer.observe(document.body, { childList: true, subtree: true });
     });
   }
 
-  #initVirtualChatManager() {
-    this.virtualChatManager = new VirtualChatManager();
-    this.virtualChatManager.rebuildMessageCache();
-    this.virtualChatManager.updateWindowIndices();
-    this.virtualChatManager.resyncDOM();
-    Logger.debug("Virtualiser", "Created Virtual Chat Manager");
-  }
-
-  #initScrollSystem() {
-    if (!this.virtualChatManager) return;
-
-    this.scrollButton = new ScrollButton(this.virtualChatManager);
-    this.scrollManager = new ScrollManager(
-      this.virtualChatManager,
-      this.scrollButton,
-      this.overlay
-    );
-
-    this.scrollButton.setScrollManager(this.scrollManager);
-    this.scrollButton.init();
-    this.scrollManager.attach();
-    Logger.debug("Virtualiser", "Created Scroll System");
-  }
-
-  #initDebugOverlay() {
-    if (!this.virtualChatManager || !this.scrollManager) return;
-
-    if (CONFIG.DEBUG) {
-      this.overlay = new OverlayUI();
-      this.overlay.updateStats(this.virtualChatManager.getLoadedStats());
-      this.overlay.updateStats(this.scrollManager.getStats());
-
-      this.lifeCycleManager?.register(() => this.overlay?.destroy());
-    }
-    Logger.debug("Virtualiser", "Created Debug Overlay");
-  }
-
-  #initMutationWatcher() {
-    this.mutationWatcher = new MutationWatcher(
-      this.virtualChatManager as VirtualChatManager,
-      this.overlay
-    );
-    this.mutationWatcher.start();
-    this.lifeCycleManager?.register(() => this.mutationWatcher?.stop());
-    Logger.debug("Virtualiser", "Created Mutation Watcher");
-  }
-
-  #initVirtualiser() {
-    this.#waitForContainer()
+  private initVirtualiser() {
+    this.waitForContainer()
       .then(() => {
         Logger.debug("Virtualiser", "Initialising...");
+        // Create virtual chat manager
+        this.virtualChatManager = new VirtualChatManager();
+        this.virtualChatManager.rebuildMessageCache();
+        this.virtualChatManager.scrollWindowToBottom();
+        Logger.debug("Virtualiser", "Created Virtual Chat Manager");
 
-        // Create virtualiser components
-        this.#initVirtualChatManager();
-        this.#initScrollSystem();
-        this.#initDebugOverlay();
-        this.#initMutationWatcher();
+        // Create scroll system
+        this.scrollButton = new ScrollButton(this.virtualChatManager);
+        this.scrollManager = new ScrollManager(
+          this.virtualChatManager,
+          this.scrollButton
+        );
+
+        this.scrollButton.setScrollManager(this.scrollManager);
+        this.scrollButton.init();
+        Logger.debug("Virtualiser", "Created Scroll Manager");
+
+        // Create mutation watcher
+        this.mutationWatcher = new MutationWatcher(
+          this.virtualChatManager as VirtualChatManager
+        );
+        this.mutationWatcher.start();
+        this.lifeCycleManager?.register(() => this.mutationWatcher?.stop());
+        Logger.debug("Virtualiser", "Created Mutation Watcher");
+
+        OverlayUI.getInstance().updateStats(
+          (this.virtualChatManager as VirtualChatManager).getStats()
+        );
+        OverlayUI.getInstance().updateStats(
+          (this.scrollManager as ScrollManager).getStats()
+        );
 
         Logger.debug("Virtualiser", "Initialisation succeeded.");
       })
@@ -130,20 +102,21 @@ export default class Virtualiser {
       });
   }
 
-  resetVirtualiser() {
+  public resetVirtualiser() {
     this.lifeCycleManager?.cleanupAll();
-    this.#initVirtualiser();
+    this.initVirtualiser();
   }
 
-  toggleOverlay() {
-    this.overlay?.updateStats(
-      (this.virtualChatManager as VirtualChatManager).getLoadedStats()
+  public toggleOverlay() {
+    const overlay = OverlayUI.getInstance();
+    overlay.updateStats(
+      (this.virtualChatManager as VirtualChatManager).getStats()
     );
-    this.overlay?.updateStats((this.scrollManager as ScrollManager).getStats());
-    this.overlay?.toggle();
+    overlay.updateStats((this.scrollManager as ScrollManager).getStats());
+    overlay.toggle();
   }
 
-  destroy() {
+  public destroy() {
     this.lifeCycleManager?.cleanupAll();
   }
 }

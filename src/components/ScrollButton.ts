@@ -9,16 +9,24 @@ import { Logger } from "@utils/utils";
  * Provides a custom scroll-to-bottom button for improved UX.
  */
 export default class ScrollButton {
-  chatManager: VirtualChatManager;
-  scrollManager: ScrollManager | null;
-  lifeCycleManager: LifecycleManager;
-  button: HTMLElement | null;
-  container: Element | null;
-  nativeButtonRetryCount: number;
+  /** The chat manager instance */
+  private chatManager: VirtualChatManager;
+  /** The scroll manager instance, if set */
+  private scrollManager: ScrollManager | null;
+  /** Manager for cleanup operations */
+  private lifeCycleManager: LifecycleManager;
+  /** The custom scroll button element */
+  private button: HTMLElement | null;
+  /** The chat container element */
+  private container: Element | null;
+  /** Counter for native button discovery retries */
+  private nativeButtonRetryCount: number;
+  /** The bound click event handler */
+  private boundHandleClick: (e: Event) => void;
 
   /**
-   * @param {Object} chatManager - Instance of VirtualChatManager.
-   * @param {Object} scrollManager - Instance of ScrollManager.
+   * Creates a new ScrollButton instance
+   * @param {VirtualChatManager} chatManager - Instance of VirtualChatManager
    */
   constructor(chatManager: VirtualChatManager) {
     this.chatManager = chatManager;
@@ -27,14 +35,16 @@ export default class ScrollButton {
     this.button = null;
     this.container = null;
     this.nativeButtonRetryCount = 0;
+    this.boundHandleClick = this.handleClick.bind(this);
   }
 
   /**
    * Initialises the custom scroll button by cloning the native button.
    * Retries if the conversation container or native button is not found.
+   * @returns {void}
    */
-  init() {
-    this.container = this.chatManager.getContainer();
+  public init(): void {
+    this.container = this.chatManager.getConversationContainer();
     if (!this.container) {
       Logger.warn("ScrollButton", "Container not found. Retrying...");
       setTimeout(() => this.init(), 1000);
@@ -63,9 +73,9 @@ export default class ScrollButton {
     this.button = nativeBtn.cloneNode(true) as HTMLElement;
     this.button.id = IDS.CUSTOM_SCROLL_BUTTON;
     this.button.style.display = "";
-    this.button.addEventListener("click", this.handleClick.bind(this));
+    this.button.addEventListener("click", this.boundHandleClick);
     this.lifeCycleManager?.register(() => {
-      this.button?.removeEventListener("click", this.handleClick.bind(this));
+      this.button?.removeEventListener("click", this.boundHandleClick);
     });
     nativeBtn.parentElement?.appendChild(this.button as Node);
     this.lifeCycleManager?.register(() => {
@@ -78,41 +88,54 @@ export default class ScrollButton {
   /**
    * Handles the click event on the custom scroll button.
    * Rebuilds the message cache and forces scrolling to the bottom.
-   * @param {Event} e - The click event.
+   * @param {Event} e - The click event
+   * @returns {void}
    */
-  handleClick(e: Event) {
-    // TODO re-evaluate whether everything in this handler is what I want it to do
+  public handleClick(e: Event): void {
+    // Ensure the handler performs necessary operations safely
     e.preventDefault();
     e.stopPropagation();
 
     Logger.debug("ScrollButton", "Button clicked.");
 
-    if (!this.container) return;
+    if (!this.container) {
+      Logger.error("ScrollButton", "Container is not available.");
+      return;
+    }
 
-    window.disableAutoScroll = true;
+    try {
+      window.disableAutoScroll = true;
 
-    this.chatManager.rebuildMessageCache();
-    this.chatManager.updateWindowIndices();
-    this.chatManager.resyncDOM(this.container);
+      this.chatManager.rebuildMessageCache();
+      this.chatManager.scrollWindowToBottom();
+      
+      if (this.scrollManager) {
+        this.scrollManager.forceScrollToBottom(this.container);
+      } else {
+        Logger.warn("ScrollButton", "ScrollManager is not set.");
+      }
 
-    this.scrollManager?.forceScrollToBottom(this.container);
-
-    setTimeout(() => {
-      window.disableAutoScroll = false;
-    }, 1500);
+      setTimeout(() => {
+        window.disableAutoScroll = false;
+      }, 1500);
+    } catch (error) {
+      Logger.error("ScrollButton", "Error occurred during click handling:", String(error));
+    }
   }
 
   /**
    * Updates the button's visibility based on the scroll position.
+   * Hides the button when near the bottom of the container.
+   * @returns {void}
    */
-  updateVisibility() {
+  public updateVisibility(): void {
     if (!this.button || !this.container) return;
 
-    const scrollTop = this.container.scrollTop;
-    const clientHeight = this.container.clientHeight;
-    const scrollHeight = this.container.scrollHeight;
-    const dynamicBottomThreshold = clientHeight * CONFIG.DYNAMIC_BOTTOM_RATIO;
-    const nearBottom =
+    const scrollTop: number = this.container.scrollTop;
+    const clientHeight: number = this.container.clientHeight;
+    const scrollHeight: number = this.container.scrollHeight;
+    const dynamicBottomThreshold: number = clientHeight * CONFIG.DYNAMIC_BOTTOM_RATIO;
+    const nearBottom: boolean =
       scrollTop + clientHeight >= scrollHeight - dynamicBottomThreshold;
 
     this.button.style.display = nearBottom ? "none" : "";
@@ -125,13 +148,18 @@ export default class ScrollButton {
 
   /**
    * Sets or updates the scrollManager instance.
-   * @param {ScrollManager} scrollManager - The ScrollManager instance.
+   * @param {ScrollManager} scrollManager - The ScrollManager instance
+   * @returns {void}
    */
-  setScrollManager(scrollManager: ScrollManager) {
+  public setScrollManager(scrollManager: ScrollManager): void {
     this.scrollManager = scrollManager;
   }
 
-  destroy() {
+  /**
+   * Cleans up resources and event listeners when the component is destroyed.
+   * @returns {void}
+   */
+  public destroy(): void {
     this.lifeCycleManager?.cleanupAll();
   }
 }

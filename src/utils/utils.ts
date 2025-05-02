@@ -1,4 +1,5 @@
 import { CONFIG } from "@config/config";
+import { SELECTORS } from "@config/constants";
 
 /**
  * Retrieves a unique identifier for a DOM node.
@@ -22,15 +23,94 @@ export function getNodeId(node: HTMLElement): string {
  * Debug-only logger that outputs a message to the console.
  */
 export class Logger {
-  static debug(tag: string, ...args: string[]): void {
+  public static debug(tag: string, ...args: string[]): void {
     if (CONFIG.DEBUG) console.log(`[${tag}]`, ...args);
   }
 
-  static error(tag: string, ...args: string[]): void {
+  public static error(tag: string, ...args: string[]): void {
     if (CONFIG.DEBUG) console.error(`[${tag}]`, ...args);
   }
 
-  static warn(tag: string, ...args: string[]): void {
+  public static warn(tag: string, ...args: string[]): void {
     if (CONFIG.DEBUG) console.warn(`[${tag}]`, ...args);
   }
+}
+
+export function anyToString(x: any): string {
+  if (x === null) return "null: null";
+
+  const MAX_LEN = 64;
+  function truncate(s: string): string {
+    return s.length > MAX_LEN ? s.slice(0, MAX_LEN) + "…" : s;
+  }
+
+  switch (typeof x) {
+    case "undefined":
+      return "undefined: undefined";
+    case "string":
+      return "string: " + x;
+    case "number":
+      return "number: " + x;
+    case "boolean":
+      return "boolean: " + x;
+    case "bigint":
+      return "bigint: " + x;
+    case "symbol":
+      return "symbol: " + String(x);
+    case "function":
+      return "function: " + truncate(x.name || "[anonymous]");
+    case "object": {
+      const rawTag = Object.prototype.toString.call(x); // "[object HTMLDivElement]"
+      const tag = rawTag.slice(8, -1); // "HTMLDivElement"
+
+      try {
+        const json = JSON.stringify(x);
+        if (json && json !== "{}") {
+          return `${tag}: ${truncate(json)}`;
+        }
+      } catch { }
+
+      // Fallback
+      const str = String(x);
+      if (str.startsWith("[object ")) {
+        return `${tag}: [Unserialisable]`;
+      }
+      return `${tag}: ${truncate(str)}`;
+    }
+    default:
+      return "[unknown type]: " + String(x);
+  }
+}
+
+/**
+ * Gets only the outer tag of an HTML element.
+ * @param el - The element to get the outer tag of
+ * @returns 
+ */
+export function outerTag(el: HTMLElement): string {
+  return (el.cloneNode(false) as HTMLElement).outerHTML;
+}
+
+/**
+ * Clamps a number between a minimum and maximum value. 
+ * @param x - The number to clamp.
+ * @param min - The minimum value.
+ * @param max - The maximum value.
+ * @returns The clamped number.
+ */
+export function clamp(x: number, min: number, max: number): number {
+  if (min > max) {
+    throw new Error(`Min cannot be greater than max: ${min} > ${max}`);
+  }
+  return Math.max(min, Math.min(x, max));
+}
+
+/**
+ * Gets the scrollable chat container element from the DOM.
+ */
+export function getChatContainer(): Element | null {
+  return document.querySelector(SELECTORS.CONVERSATION_TURN)
+    ?.parentElement
+    ?.parentElement 
+    ?? null;
 }

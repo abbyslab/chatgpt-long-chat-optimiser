@@ -2,111 +2,148 @@ import OverlayUI from "@components/OverlayUI";
 import ScrollButton from "@components/ScrollButton";
 import { CONFIG } from "@config/config";
 import VirtualChatManager from "@managers/VirtualChatManager";
-import { Logger } from "@utils/utils";
+import DebugStatistics from "@utils/DebugStatistics";
+import { Logger, outerTag } from "@utils/utils";
 
 /**
  * Manages scroll events and related UI updates for the chat conversation.
  */
 export default class ScrollManager {
-  chatManager: VirtualChatManager;
-  scrollButton: ScrollButton;
-  overlay: OverlayUI | null;
-  container: Element | null;
-  lastScrollTop: number;
-  scrollHandler: any;
-  scrollIntervalId: any;
+  private chatManager: VirtualChatManager;
+  private scrollButton: ScrollButton;
+  private container: Element | null;
+  private scrollHandler: EventListenerOrEventListenerObject;
+  private scrollIntervalId: number | null;
 
   /**
-   * @param {VirtualChatManager} chatManager - Manages message caching and DOM updates.
-   * @param {ScrollButton} scrollButton - Custom scroll button instance.
-   * @param {OverlayUI} [overlayUI=null] - Optional overlay UI for debug stats.
+   * Creates a new ScrollManager instance.
+   * 
+   * @param chatManager - Manages message caching and DOM updates.
+   * @param scrollButton - Custom scroll button instance.
    */
-  constructor(
+  public constructor(
     chatManager: VirtualChatManager,
-    scrollButton: ScrollButton,
-    overlayUI: OverlayUI | null = null
+    scrollButton: ScrollButton
   ) {
     this.chatManager = chatManager;
     this.scrollButton = scrollButton;
-    this.overlay = overlayUI;
-
     this.container = null; // The conversation container element
-    this.lastScrollTop = 0; // Stores the last known scroll position
     this.scrollHandler = this.onScroll.bind(this);
+    this.scrollIntervalId = null;
+
+    this.attach();
   }
 
-  getStats() {
+  /**
+   * Returns the current scroll statistics of the container.
+   * 
+   * @returns An object containing scroll position information.
+   */
+  public getStats(): Partial<DebugStatistics> {
+    if (!this.container) {
+      return { scrollTop: 0, clientHeight: 0, scrollHeight: 0 };
+    }
+
     return {
-      scrollTop: this.container?.scrollTop,
-      clientHeight: this.container?.clientHeight,
-      scrollHeight: this.container?.scrollHeight,
+      scrollTop: this.container.scrollTop || 0,
+      clientHeight: this.container.clientHeight || 0,
+      scrollHeight: this.container.scrollHeight || 0,
     };
   }
 
   /**
    * Attaches the scroll event listener to the conversation container.
-   * Retries every second if the container is not found.
+   * Retries every 500ms if the container is not found.
+   * 
+   * @private
    */
-  attach() {
-    this.container = this.chatManager.getContainer();
-    if (!this.container) {
-      Logger.warn("ScrollManager", "Container not found. Retrying...");
-      setTimeout(() => this.attach(), 1000);
-      return;
-    }
-
-    this.container.addEventListener("scroll", this.scrollHandler);
-    Logger.debug("ScrollManager", "Scroll event attached.");
+  private attach(): void {
+    const tryBind = (): void => {
+      this.container = this.chatManager.getConversationContainer();
+      if (!this.container) {
+        Logger.warn("ScrollManager", "Container not found. Retrying...");
+        setTimeout(tryBind, 500);
+        return;
+      }
+      Logger.debug("ScrollManager", "Container before attaching scroll listener:");
+      Logger.debug("ScrollManager", `  ${outerTag(this.container as HTMLElement)}`);
+      this.container.addEventListener("scroll", this.scrollHandler, { passive: true });
+      Logger.debug("ScrollManager", "Scroll event attached.");
+    };
+    tryBind();
   }
 
   /**
    * Handles scroll events by extending the visible window if needed,
    * updating the scroll button visibility, and updating the overlay stats.
    */
-  onScroll() {
-    Logger.debug("SCROLLING");
+  public onScroll(): void {
     if (!this.container || window.disableAutoScroll) return;
 
-    const scrollingUp = this.container?.scrollTop < this.lastScrollTop;
-    this.lastScrollTop = this.container?.scrollTop;
+    Logger.debug("ScrollManager", "Scrolling...");
 
-    const topTrigger = this.container?.scrollTop < CONFIG.TOP_THRESHOLD;
+    const scrollTop = this.container.scrollTop;
+    const scrollHeight = this.container.scrollHeight;
+    const clientHeight = this.container.clientHeight;
 
-    if (scrollingUp && topTrigger) {
-      const extended = this.chatManager.extendWindowBackward();
-      if (extended) {
-        this.chatManager.resyncDOM(this.container);
-      }
+    const adjustedTopThreshold = Math.min(CONFIG.TOP_THRESHOLD, clientHeight / 2);
+    const adjustedBottomThreshold = Math.min(CONFIG.BOTTOM_THRESHOLD, clientHeight / 2);
+
+    const topTrigger = scrollTop < adjustedTopThreshold;
+    const bottomTrigger = scrollTop + clientHeight > scrollHeight - adjustedBottomThreshold;
+
+    // Ensure triggers are mutually exclusive
+    if (topTrigger && bottomTrigger) {
+      Logger.warn(
+        "ScrollManager",
+        "Both topTrigger and bottomTrigger are active. Adjust CONFIG thresholds or window size."
+      );
+      return; // Prevent conflicting actions
     }
 
+    // Load older messages if near the top
+    if (topTrigger) {
+      Logger.debug("ScrollManager", "Near the top. Attempting to load older messages...");
+      this.chatManager.scrollWindowUp();
+    }
+
+    // Load newer messages if near the bottom
+    if (bottomTrigger) {
+      Logger.debug("ScrollManager", "Near the bottom. Attempting to load newer messages...");
+      this.chatManager.scrollWindowDown();
+    }
+
+    // Update the scroll button visibility
     this.scrollButton.updateVisibility();
 
-    if (this.overlay) {
-      Logger.debug("ScrollManager", "Scrolled. Updating overlay.");
-      this.overlay.updateStats(this.chatManager.getLoadedStats());
-    } else {
-      Logger.error("ScrollManager", "Overlay UI not found.");
-    }
+    // Update the overlay stats
+    OverlayUI.getInstance().updateStats({
+      ...this.chatManager.getStats(),
+      ...this.getStats(),
+    });
   }
 
   /**
    * Forces the container to scroll to the bottom by incrementally adjusting scrollTop.
    * Uses an interval that clears after reaching the bottom or after a maximum number of attempts.
-   * @param {Element} container - The container element (defaults to the one from chatManager).
+   * 
+   * @param container - The container element (defaults to the one from chatManager).
    */
-  forceScrollToBottom(container = this.chatManager.getContainer()) {
+  public forceScrollToBottom(container: Element | null = this.chatManager.getConversationContainer()): void {
     if (!container) return;
+
+    this.chatManager.scrollWindowToBottom();
 
     window.disableAutoScroll = true;
     let attempts = 0;
     const maxAttempts = 10;
 
     if (this.scrollIntervalId) clearInterval(this.scrollIntervalId);
-    this.scrollIntervalId = setInterval(() => {
+    this.scrollIntervalId = window.setInterval(() => {
       attempts++;
       const lastChild = container.lastElementChild;
       if (!lastChild || attempts >= maxAttempts) {
-        clearInterval(this.scrollIntervalId);
+        if (this.scrollIntervalId) clearInterval(this.scrollIntervalId);
         this.scrollIntervalId = null;
         window.disableAutoScroll = false;
         return;
@@ -124,15 +161,20 @@ export default class ScrollManager {
       if (offset > 5) {
         container.scrollTop += offset;
       } else {
-        clearInterval(this.scrollIntervalId);
+        if (this.scrollIntervalId) clearInterval(this.scrollIntervalId);
         this.scrollIntervalId = null;
         window.disableAutoScroll = false;
       }
     }, 100);
   }
 
-  destroy() {
+  /**
+   * Cleans up resources when the manager is no longer needed.
+   */
+  public destroy(): void {
     if (this.scrollIntervalId) clearInterval(this.scrollIntervalId);
-    this.container?.removeEventListener("scroll", this.scrollHandler);
+    if (this.container && this.scrollHandler) {
+      this.container.removeEventListener("scroll", this.scrollHandler);
+    }
   }
 }

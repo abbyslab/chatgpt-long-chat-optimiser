@@ -7,21 +7,25 @@ import { Logger } from "@utils/utils";
  * Observes DOM mutations to detect new chat message nodes.
  */
 export default class MutationWatcher {
-  chatManager: VirtualChatManager;
-  overlay: OverlayUI | null;
-  observer: MutationObserver | null;
+  private chatManager: VirtualChatManager;
+  private observer: MutationObserver | null;
 
-  constructor(chatManager: VirtualChatManager, overlayUI: OverlayUI | null) {
-    this.chatManager = chatManager; // Instance of VirtualChatManager
-    this.overlay = overlayUI; // Instance of OverlayUI
-    this.observer = null; // Will hold the MutationObserver instance
+  /**
+   * Creates a new instance of MutationWatcher.
+   * @param chatManager - Instance of VirtualChatManager
+   * @param overlayUI - Instance of OverlayUI or null
+   */
+  public constructor(chatManager: VirtualChatManager) {
+    this.chatManager = chatManager;
+    this.observer = null;
   }
 
   /**
    * Starts observing the document for new message nodes.
    * Throws an error if no chatManager is provided.
+   * @returns void
    */
-  start() {
+  public start(): void {
     if (!this.chatManager) {
       throw new Error("MutationWatcher: chatManager is required.");
     }
@@ -31,40 +35,23 @@ export default class MutationWatcher {
     Logger.debug("MutationWatcher", "Observer started.");
   }
 
-  #rebuildCacheAndDOM() {
-    this.chatManager.rebuildMessageCache();
-    this.chatManager.updateWindowIndices();
-    this.chatManager.resyncDOM();
-  }
-
-  #updateOverlay() {
-    this.overlay?.updateStats(this.chatManager.getLoadedStats());
-  }
-
   /**
    * Handles DOM mutations by checking for new message nodes.
    * If new nodes are detected, the message cache is rebuilt.
-   * @param {MutationRecord[]} mutations - Array of mutation records.
+   * @param mutations - Array of mutation records.
+   * @returns void
    */
-  handleMutations(mutations: MutationRecord[]) {
-    let newMessagesFound = false;
+  public handleMutations(mutations: MutationRecord[]): void {
+    let newMessagesFound: boolean = false;
     for (const mutation of mutations) {
       for (const node of mutation.addedNodes) {
         if (node.nodeType !== Node.ELEMENT_NODE) continue;
         const el: HTMLElement = node as HTMLElement;
-
-        if (el.matches?.(SELECTORS.CONVERSATION_TURN)) {
-          // If node is a message -> add it
-          newMessagesFound ||= this.chatManager.addNewNode(el);
-        } else {
-          // If node contains messages -> add them
-          const articles =
-            el.querySelectorAll?.(SELECTORS.CONVERSATION_TURN) || [];
-          articles.forEach(
-            (article) =>
-              (newMessagesFound ||= this.chatManager.addNewNode(article as HTMLElement))
-          );
-        }
+      
+        if (!el.matches?.(SELECTORS.CONVERSATION_TURN)) continue;
+      
+        // If node is a message -> add it
+        newMessagesFound ||= this.chatManager.addNewNode(el);
       }
     }
 
@@ -73,15 +60,18 @@ export default class MutationWatcher {
         "MutationWatcher",
         "New messages detected. Rebuilding cache."
       );
-      this.#rebuildCacheAndDOM();
-      this.#updateOverlay();
+      this.chatManager.rebuildMessageCache();
+      this.chatManager.scrollWindowToBottom();
+      
+      OverlayUI.getInstance().updateStats(this.chatManager.getStats());
     }
   }
 
   /**
    * Stops observing DOM mutations.
+   * @returns void
    */
-  stop() {
+  public stop(): void {
     this.observer?.disconnect();
     Logger.debug("MutationWatcher", "Observer stopped.");
   }

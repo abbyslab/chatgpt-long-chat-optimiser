@@ -6,10 +6,10 @@ const alias = {
   "@utils": path.resolve(__dirname, "src/utils"),
   "@content": path.resolve(__dirname, "src/content"),
   "@config": path.resolve(__dirname, "src/config"),
+  "@styles": path.resolve(__dirname, "src/styles")
 };
 
 module.exports = {
-  mode: "production",
   entry: {
     content_script: "./src/content/content-script.ts",
     background: "./src/background/background.ts",
@@ -22,7 +22,7 @@ module.exports = {
   target: "web",
   resolve: {
     alias,
-    extensions: [".ts", ".js"],
+    extensions: [".ts", ".js", ".css"],
   },
   module: {
     rules: [
@@ -30,6 +30,15 @@ module.exports = {
         test: /\.ts$/,
         use: "ts-loader",
         exclude: /node_modules/,
+      },
+      {
+        test: /\.css$/,
+        use: [
+          "style-loader",
+          {
+            loader: "css-loader",
+          },
+        ],
       },
     ],
   },

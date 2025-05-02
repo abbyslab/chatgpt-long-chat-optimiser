@@ -1,0 +1,14 @@
+#tm-debug-overlay {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 2147483647;
+  background-color: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: monospace;
+  border-radius: 4px;
+  pointer-events: none;
+  white-space: pre-line;
+}

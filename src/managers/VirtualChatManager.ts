@@ -1,42 +1,48 @@
 import { CONFIG } from "@config/config";
 import { SELECTORS } from "@config/constants";
-import { getNodeId, Logger } from "@utils/utils";
+import DebugStatistics from "@utils/DebugStatistics";
+import { getChatContainer, getNodeId, Logger } from "@utils/utils";
 
 /**
  * Manages the caching and virtual rendering of chat messages.
  */
 export default class VirtualChatManager {
-  allTurns: HTMLElement[];
-  nodeCache: Map<any, any>;
-  lowestIndex: number;
-  highestIndex: number;
-  containerCache: Element | null;
+  /** Array of all message nodes */
+  private allTurns: HTMLElement[];
+  /** Cache mapping node IDs to nodes */
+  private nodeCache: Map<string, HTMLElement>;
+  /** First visible message index */
+  private lowestIndex: number;
+  /** Last visible message index */
+  private highestIndex: number;
+  /** Cached reference to the conversation container */
+  private containerCache: Element | null;
 
-  constructor() {
-    this.allTurns = []; // Array of all message nodes
-    this.nodeCache = new Map(); // Cache mapping node IDs to nodes
-    this.lowestIndex = 0; // First visible message index
-    this.highestIndex = 0; // Last visible message index
-    this.containerCache = null; // Cached reference to the conversation container
+  /**
+   * Initialises a new instance of VirtualChatManager
+   */
+  public constructor() {
+    this.allTurns = [];
+    this.nodeCache = new Map<string, HTMLElement>();
+    this.lowestIndex = 0;
+    this.highestIndex = 0;
+    this.containerCache = null;
   }
 
   /**
    * Returns the conversation container element.
    * Caches the result for performance.
-   * @returns {Element} The conversation container element.
+   * @returns The conversation container element or null if not found
    */
   getConversationContainer(): Element | null {
-    if (this.containerCache) return this.containerCache;
-    this.containerCache =
-      document.querySelector(SELECTORS.CONVERSATION_TURN)?.parentElement ||
-      document.querySelector(SELECTORS.CHAT_CONTAINER);
-    return this.containerCache;
+    return this.containerCache ??= getChatContainer();
   }
 
   /**
    * Clears and rebuilds the cache of message nodes.
+   * @returns void
    */
-  rebuildMessageCache() {
+  public rebuildMessageCache(): void {
     this.allTurns = [];
     this.nodeCache.clear();
 
@@ -44,12 +50,12 @@ export default class VirtualChatManager {
     if (!container) return;
 
     // Query the container for all message articles
-    const articles = container.querySelectorAll(SELECTORS.CONVERSATION_TURN);
-    articles.forEach((article: any) => {
-      const id = getNodeId(article);
+    const articles: NodeListOf<Element> = container.querySelectorAll(SELECTORS.CONVERSATION_TURN);
+    articles.forEach((article: Element) => {
+      const id: string = getNodeId(article as HTMLElement);
       if (id) {
-        this.nodeCache.set(id, article);
-        this.allTurns.push(article);
+        this.nodeCache.set(id, article as HTMLElement);
+        this.allTurns.push(article as HTMLElement);
       }
     });
 
@@ -60,65 +66,105 @@ export default class VirtualChatManager {
   }
 
   /**
-   * Updates the indices that define the currently visible window of messages.
-   */
-  updateWindowIndices() {
-    this.highestIndex = this.allTurns.length - 1;
-    this.lowestIndex = Math.max(
-      0,
-      this.highestIndex - (CONFIG.KEEP_RECENT - 1)
-    );
-
-    Logger.debug(
-      "VirtualChatManager",
-      `Window indices updated: lowest=${this.lowestIndex}, highest=${this.highestIndex}`
-    );
-  }
-
-  /**
    * Updates the DOM to show only the messages within the current visible window.
-   * @param {Element} container - The container element (default is the cached container).
+   * @param container - The container element (default is the cached container)
+   * @returns void
    */
-  resyncDOM(container = this.getConversationContainer()) {
+  private updateDOM(): void {
+    const container: Element | null = this.getConversationContainer();
     if (!container) return;
 
-    this.allTurns.forEach((node, index) => {
+    this.allTurns.forEach((node: HTMLElement, index: number) => {
       node.style.display =
         index >= this.lowestIndex && index <= this.highestIndex ? "" : "none";
     });
 
     Logger.debug(
       "VirtualChatManager",
-      `DOM resynced. Showing ${
-        this.highestIndex - this.lowestIndex + 1
+      `DOM resynced. Showing ${this.highestIndex - this.lowestIndex + 1
       } messages.`
     );
   }
 
   /**
-   * Extends the visible window by lowering the lowest index.
-   * @returns {boolean} True if the window was extended, false otherwise.
+   * Changes the visible window by changing the range of conversation turn indices that are visible.
+   * @returns True if the window was changed, false otherwise
    */
-  extendWindowBackward() {
-    const prevLowest = this.lowestIndex;
-    this.lowestIndex = Math.max(0, this.lowestIndex - CONFIG.CHUNK_SIZE);
-    return this.lowestIndex !== prevLowest;
+  private requestWindowChange(requestIndexLow: number, requestIndexHigh: number): boolean {
+    if (this.allTurns.length === 0) return false;
+
+    if (requestIndexLow > requestIndexHigh) {
+      Logger.warn(
+        "VirtualChatManager",
+        `Invalid indices requested: low=${requestIndexLow} is higher than high=${requestIndexHigh}`
+      );
+      return false;
+    }
+
+    const prevLowest: number = this.lowestIndex;
+    const prevHighest: number = this.highestIndex;
+
+    // Snap the requested indices to the edges if they are too large or small.
+    const maxIndex = this.allTurns.length - 1;
+    if (requestIndexLow < 0) {
+      requestIndexLow = 0;
+      requestIndexHigh = Math.min(CONFIG.WINDOW_SIZE, maxIndex);
+    } else if (requestIndexHigh > maxIndex) {
+      requestIndexLow = Math.max(0, maxIndex - CONFIG.WINDOW_SIZE);
+      requestIndexHigh = maxIndex;
+    }
+
+    this.lowestIndex = requestIndexLow;
+    this.highestIndex = requestIndexHigh;
+    this.updateDOM();
+
+    const isChanged = this.lowestIndex !== prevLowest || this.highestIndex !== prevHighest;
+    if (isChanged) Logger.debug("VirtualChatManager", `Window changed: lowest=${this.lowestIndex}, highest=${this.highestIndex}`);
+    return isChanged;
   }
 
   /**
-   * Alias for getConversationContainer.
-   * @returns {Element} The conversation container element.
+   * Scrolls the visible window downward and hides older messages.
+   * @returns True if the window was extended, false otherwise
    */
-  getContainer() {
-    return this.getConversationContainer();
+  public scrollWindowDown(): boolean {
+    return this.requestWindowChange(
+      this.lowestIndex + CONFIG.WINDOW_SIZE,
+      this.highestIndex + CONFIG.WINDOW_SIZE
+    );
+  }
+
+  /**
+   * Scrolls the visible window upward and hides newer messages.
+   * @returns True if the window was extended, false otherwise
+   */
+  public scrollWindowUp(): boolean {
+    return this.requestWindowChange(
+      this.lowestIndex - CONFIG.WINDOW_SIZE,
+      this.highestIndex - CONFIG.WINDOW_SIZE
+    );
+  }
+
+  /**
+   * Moves the visible range to the end of the conversation.
+   * @returns True if the window was moved, false otherwise
+   */
+  public scrollWindowToBottom(): boolean {
+    const maxIndex = this.allTurns.length - 1;
+    return this.requestWindowChange(
+      maxIndex - CONFIG.WINDOW_SIZE,
+      maxIndex
+    );
   }
 
   /**
    * Returns statistics about the currently loaded messages.
-   * @returns {Object} An object with 'visible' and 'total' message counts.
+   * @returns An object with the range of visible indices as well as 'visible' and 'total' message counts
    */
-  getLoadedStats() {
+  public getStats(): Partial<DebugStatistics> {
     return {
+      turnsIndexLow: this.lowestIndex,
+      turnsIndexHigh: this.highestIndex,
       turnsVisible: this.highestIndex - this.lowestIndex + 1,
       turnsTotal: this.allTurns.length,
     };
@@ -126,13 +172,13 @@ export default class VirtualChatManager {
 
   /**
    * Adds a new message node to the cache if it is not already present.
-   * @param {HTMLElement} node - The message node to add.
-   * @returns {boolean} True if the node was added, false otherwise.
+   * @param node - The message node to add
+   * @returns True if the node was added, false otherwise
    */
-  addNewNode(node: HTMLElement) {
+  public addNewNode(node: HTMLElement): boolean {
     const id: string = getNodeId(node);
     const isPresent: boolean = !this.nodeCache.has(id);
-    
+
     if (isPresent) {
       this.nodeCache.set(id, node);
       this.allTurns.push(node);

@@ -15,6 +15,7 @@ export default class ScrollManager {
   private scrollHandler: EventListener;
   private scrollIntervalId: number | null;
   private updateIntervalId: number | null;
+  private lastUpdate: number;
 
   /**
    * Creates a new ScrollManager instance.
@@ -32,6 +33,7 @@ export default class ScrollManager {
     this.scrollHandler = this.updateIfNeeded.bind(this);
     this.scrollIntervalId = null;
     this.updateIntervalId = null;
+    this.lastUpdate = 0;
 
     this.attach();
   }
@@ -83,9 +85,12 @@ export default class ScrollManager {
   public updateIfNeeded(): void {
     if (!this.container || window.disableAutoScroll) return;
 
-    const scrollHeight = this.container.scrollHeight; // Height of scrollable area
-    const clientHeight = this.container.clientHeight; // Height of visible area
-    const scrollTop = this.container.scrollTop;       // Distance from top of scrollable area to the top of visible area
+    const now = Date.now();
+    const withinCooldown = now - this.lastUpdate < CONFIG.SCROLL_COOLDOWN_MS;
+
+    const scrollHeight = this.container.scrollHeight;
+    const clientHeight = this.container.clientHeight;
+    const scrollTop = this.container.scrollTop;
 
     const adjustedTopThreshold = Math.min(CONFIG.TOP_THRESHOLD, clientHeight / 2);
     const adjustedBottomThreshold = Math.min(CONFIG.BOTTOM_THRESHOLD, clientHeight / 2);
@@ -93,46 +98,36 @@ export default class ScrollManager {
     const topTrigger = scrollTop < adjustedTopThreshold;
     const bottomTrigger = scrollTop + clientHeight > scrollHeight - adjustedBottomThreshold;
 
-    // Ensure triggers are mutually exclusive
     if (topTrigger && bottomTrigger) {
       Logger.warn(
         "ScrollManager",
         "Both topTrigger and bottomTrigger are active. Adjust CONFIG thresholds or window size."
       );
-      return; // Prevent conflicting actions
+      return;
     }
 
-    let changed = false;
+    let modified = false;
 
-    // Load older messages if near the top
-    if (topTrigger) {
-      Logger.debug(
-        "ScrollManager",
-        "Near the top. Attempting to load older messages..."
-      );
-      changed ||= this.chatManager.scrollWindowUp();
+    if (topTrigger && !withinCooldown) {
+      Logger.debug("ScrollManager", "Near the top. Attempting to load older messages...");
+      modified = this.chatManager.scrollWindowUp() || modified;
     }
 
-    // Load newer messages if near the bottom
-    if (bottomTrigger) {
-      Logger.debug(
-        "ScrollManager",
-        "Near the bottom. Attempting to load newer messages..."
-      );
-      changed ||= this.chatManager.scrollWindowDown();
+    if (bottomTrigger && !withinCooldown) {
+      Logger.debug("ScrollManager", "Near the bottom. Attempting to load newer messages...");
+      modified = this.chatManager.scrollWindowDown() || modified;
     }
 
-    if (changed) {
+    if (modified) {
+      this.lastUpdate = now;
       window.disableAutoScroll = true;
       window.setTimeout(() => {
         window.disableAutoScroll = false;
       }, 50);
     }
 
-    // Update the scroll button visibility
     this.scrollButton.updateVisibility();
 
-    // Update the overlay stats
     OverlayUI.getInstance().updateStats({
       ...this.chatManager.getStats(),
       ...this.getStats(),

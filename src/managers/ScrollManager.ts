@@ -12,7 +12,7 @@ export default class ScrollManager {
   private chatManager: VirtualChatManager;
   private scrollButton: ScrollButton;
   private container: Element | null;
-  private scrollHandler: EventListenerOrEventListenerObject;
+  private scrollHandler: EventListener;
   private scrollIntervalId: number | null;
   private updateIntervalId: number | null;
 
@@ -70,7 +70,7 @@ export default class ScrollManager {
       Logger.debug("ScrollManager", "Container before attaching scroll listener:");
       Logger.debug("ScrollManager", `  ${outerTag(this.container as HTMLElement)}`);
       this.container.addEventListener("scroll", this.scrollHandler, { passive: true });
-      this.updateIntervalId = window.setTimeout(() => this.scrollHandler, 1000);
+      this.updateIntervalId = window.setTimeout(() => this.updateIfNeeded(), 1000);
       Logger.debug("ScrollManager", "Scroll event attached.");
     };
     tryBind();
@@ -174,7 +174,7 @@ export default class ScrollManager {
    */
   public destroy(): void {
     if (this.scrollIntervalId) window.clearInterval(this.scrollIntervalId);
-    if (this.updateIntervalId) window.clearInterval(this.updateIntervalId);
+    if (this.updateIntervalId) window.clearTimeout(this.updateIntervalId);
     if (this.container && this.scrollHandler) {
       this.container.removeEventListener("scroll", this.scrollHandler);
     }

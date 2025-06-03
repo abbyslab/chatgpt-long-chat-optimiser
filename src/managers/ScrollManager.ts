@@ -102,16 +102,31 @@ export default class ScrollManager {
       return; // Prevent conflicting actions
     }
 
+    let changed = false;
+
     // Load older messages if near the top
     if (topTrigger) {
-      Logger.debug("ScrollManager", "Near the top. Attempting to load older messages...");
-      this.chatManager.scrollWindowUp();
+      Logger.debug(
+        "ScrollManager",
+        "Near the top. Attempting to load older messages..."
+      );
+      changed ||= this.chatManager.scrollWindowUp();
     }
 
     // Load newer messages if near the bottom
     if (bottomTrigger) {
-      Logger.debug("ScrollManager", "Near the bottom. Attempting to load newer messages...");
-      this.chatManager.scrollWindowDown();
+      Logger.debug(
+        "ScrollManager",
+        "Near the bottom. Attempting to load newer messages..."
+      );
+      changed ||= this.chatManager.scrollWindowDown();
+    }
+
+    if (changed) {
+      window.disableAutoScroll = true;
+      window.setTimeout(() => {
+        window.disableAutoScroll = false;
+      }, 50);
     }
 
     // Update the scroll button visibility

@@ -15,6 +15,7 @@ export default class ScrollManager {
   private scrollHandler: EventListenerOrEventListenerObject;
   private scrollIntervalId: number | null;
   private updateIntervalId: number | null;
+  private lastUpdate: number;
 
   /**
    * Creates a new ScrollManager instance.
@@ -32,6 +33,7 @@ export default class ScrollManager {
     this.scrollHandler = this.updateIfNeeded.bind(this);
     this.scrollIntervalId = null;
     this.updateIntervalId = null;
+    this.lastUpdate = 0;
 
     this.attach();
   }
@@ -83,6 +85,10 @@ export default class ScrollManager {
   public updateIfNeeded(): void {
     if (!this.container || window.disableAutoScroll) return;
 
+    const now = Date.now();
+
+    const withinCooldown = now - this.lastUpdate < CONFIG.SCROLL_COOLDOWN_MS;
+
     const scrollHeight = this.container.scrollHeight; // Height of scrollable area
     const clientHeight = this.container.clientHeight; // Height of visible area
     const scrollTop = this.container.scrollTop;       // Distance from top of scrollable area to the top of visible area
@@ -102,16 +108,22 @@ export default class ScrollManager {
       return; // Prevent conflicting actions
     }
 
+    let modified = false;
+
     // Load older messages if near the top
-    if (topTrigger) {
+    if (topTrigger && !withinCooldown) {
       Logger.debug("ScrollManager", "Near the top. Attempting to load older messages...");
-      this.chatManager.scrollWindowUp();
+      modified = this.chatManager.scrollWindowUp() || modified;
     }
 
     // Load newer messages if near the bottom
-    if (bottomTrigger) {
+    if (bottomTrigger && !withinCooldown) {
       Logger.debug("ScrollManager", "Near the bottom. Attempting to load newer messages...");
-      this.chatManager.scrollWindowDown();
+      modified = this.chatManager.scrollWindowDown() || modified;
+    }
+
+    if (modified) {
+      this.lastUpdate = now;
     }
 
     // Update the scroll button visibility

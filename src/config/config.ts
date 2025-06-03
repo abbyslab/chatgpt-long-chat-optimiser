@@ -17,6 +17,9 @@ export interface ConfigSettings {
   
   /** Delay (in milliseconds) before reinitialising after a DOM mutation */
   REINIT_DELAY: number;
+
+  /** Minimum delay (in milliseconds) between window scroll actions */
+  SCROLL_COOLDOWN_MS: number;
   
   /** Enable debug logging and overlay */
   DEBUG: boolean;
@@ -31,6 +34,8 @@ export const CONFIG: ConfigSettings = {
   BOTTOM_THRESHOLD: 500,
   DYNAMIC_BOTTOM_RATIO: 0.05,
   REINIT_DELAY: 1000,
+
+  SCROLL_COOLDOWN_MS: 100,
   
   DEBUG: true,
   OVERLAY_ENABLED: true,

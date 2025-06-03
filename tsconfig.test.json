@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/managers/**/*.ts", "src/components/ScrollButton.ts", "src/components/OverlayUI.ts", "src/utils/**/*.ts", "src/config/**/*.ts"],
+  "exclude": ["src/background/**/*", "src/content/**/*"],
+  "compilerOptions": {
+    "types": ["chrome"],
+    "outDir": "temp"
+  }
+}

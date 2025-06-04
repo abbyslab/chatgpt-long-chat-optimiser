@@ -20,7 +20,7 @@ When ChatGPT conversations become very long, the DOM can get overloaded and scro
 
 ### For End Users
 
-1. **Download a Pre-Built Release:** Visit the [Releases](https://github.com/mbeardwell/chatgpt-long-chat-optimiser/releases) section and download the latest ZIP file.
+1. **Download a Pre-Built Release:** Visit the [Releases](https://github.com/abbyslab/chatgpt-long-chat-optimiser/releases) section and download the latest ZIP file.
 
 2. **Load the Extension:**
 
@@ -35,7 +35,7 @@ When ChatGPT conversations become very long, the DOM can get overloaded and scro
 1. **Clone the Repository:**
 
    ```bash
-   git clone https://github.com/mbeardwell/chatgpt-long-chat-optimiser.git
+   git clone https://github.com/abbyslab/chatgpt-long-chat-optimiser.git
    cd chatgpt-long-chat-optimiser
    ```
 

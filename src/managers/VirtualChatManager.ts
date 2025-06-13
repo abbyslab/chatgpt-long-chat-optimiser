@@ -104,6 +104,15 @@ export default class VirtualChatManager {
     const prevLowest: number = this.lowestIndex;
     const prevHighest: number = this.highestIndex;
 
+    const container: Element | null = this.getConversationContainer();
+    const referenceNode: HTMLElement | undefined = this.allTurns[prevLowest];
+    let refTopBefore = 0;
+    if (container && referenceNode) {
+      const containerRect = (container as HTMLElement).getBoundingClientRect();
+      const refRect = referenceNode.getBoundingClientRect();
+      refTopBefore = refRect.top - containerRect.top;
+    }
+
     // Snap the requested indices to the edges if they are too large or small.
     const maxIndex = this.allTurns.length - 1;
     if (requestIndexLow < 0) {
@@ -117,6 +126,16 @@ export default class VirtualChatManager {
     this.lowestIndex = requestIndexLow;
     this.highestIndex = requestIndexHigh;
     this.updateDOM();
+
+    if (container && referenceNode) {
+      const containerRect = (container as HTMLElement).getBoundingClientRect();
+      const refRect = referenceNode.getBoundingClientRect();
+      const refTopAfter = refRect.top - containerRect.top;
+      const delta = refTopAfter - refTopBefore;
+      if (delta !== 0) {
+        (container as HTMLElement).scrollTop += delta;
+      }
+    }
 
     const isChanged = this.lowestIndex !== prevLowest || this.highestIndex !== prevHighest;
     if (isChanged) Logger.debug("VirtualChatManager", `Window changed: lowest=${this.lowestIndex}, highest=${this.highestIndex}`);

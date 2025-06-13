@@ -74,3 +74,15 @@ chrome.runtime.onMessage.addListener(handleMessages);
 lifeCycleManager?.register((): void => {
   chrome.runtime.onMessage.removeListener(handleMessages);
 });
+
+// Fallback keyboard shortcut for toggling the overlay directly in the page
+const keydownHandler = (e: KeyboardEvent): void => {
+  if (e.ctrlKey && e.shiftKey && (e.key === "Y" || e.key === "y")) {
+    e.preventDefault();
+    virtualiser.toggleOverlay();
+  }
+};
+window.addEventListener("keydown", keydownHandler);
+lifeCycleManager?.register((): void => {
+  window.removeEventListener("keydown", keydownHandler);
+});
